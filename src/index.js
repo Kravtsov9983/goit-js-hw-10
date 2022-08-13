@@ -1,39 +1,88 @@
 import './css/styles.css';
 import Notiflix from 'notiflix';
 
+
+const debounce = require('lodash.debounce');
 const DEBOUNCE_DELAY = 300;
 const input = document.querySelector("#search-box")
-const list = document.querySelector(".country-list");
+const listEl = document.querySelector(".country-list");
+const boxEl = document.querySelector('.country-info');
 
+function checkAndRender(list) {
+  if (list.length > 10) {
+    Notiflix.Notify.info(
+      'Too many matches found. Please enter a more specific name.'
+    );
+  } else if (list.length <= 10 && list.length > 1) {
+    listEl.innerHTML = '';
+    boxEl.innerHTML = '';
+    renderList(list, listEl);
+  } else {
+    boxEl.innerHTML = '';
+    listEl.innerHTML = '';
+    renderCountryBox(list, boxEl);
+    return;
+  }
+}
 
-  fetchCountries()
-    .then(insertContent)
-    .catch((error) => { console.log(error) })
+import fetchCountries from './fetchCountries';
+ 
+input.addEventListener('input', debounce(onInputCoundtyRender, DEBOUNCE_DELAY));
 
-function fetchCountries() {
-  return fetch(`https://restcountries.com/v3.1/name/{name}?fullText=true`)
-    .then(response => {return response.json()})
-};
+function onInputCoundtyRender(event) {
+  const value = event.target.value.toLowerCase().trim();
+  if (!value) {
+    listEl.innerHTML = '';
+    boxEl.innerHTML = '';
+    return;
+  }
+  fetchCountries(value)
+    .then(checkAndRender)
+    .catch(error => console.log('Oops, there is no country with that name'));
+}
 
-    const createListItem = (item) => `<li>
-  <img src="${item.flags[1]}" alt="${item.name.official}">
-  <h2>${item.name.official ? item.name.official : ""}</h2>
-  <p>${item.capital ? item.capital : ""}</p>
-  <p>${item.population ? item.population : ""}</p>
-  <p>${Object.values(item.languages) ? Object.values(item.languages) : ""}</p>
-</li>`;
-
- const generateContent = (array) => array?.reduce((acc, item) => acc + createListItem(item), "");
-
-function insertContent (array) {
-  const result = generateContent(array);
-  list.insertAdjacentHTML("beforeend", result);
+function renderCountryBox(list, box) {
+  const markup = list
+    .map(
+      ({
+        name: { official },
+        capital,
+        population,
+        flags: { svg },
+        languages,
+      }) =>
+        `<div class="country-info__box"><img src="${svg}" alt="flag" width="30">
+    <h1 class="country-info__main-title">${official}</h1></div>
+    <ul class="country-info__list">
+    <li class="country-info__item">
+     <h2 class="country-info___title">Capital:</h2>
+    <p class="country-info___text">${capital}</p>
+    </li>
+    <li class="country-info__item">
+        <h2 class="country-info___title">Population:</h2>
+     <p class="country-info___text">${population}</p>
+    </li>
+    <li class="country-info__item">
+    <h2 class="country-info___title">Languages:</h2>
+     <p class="country-info___text">${Object.values(languages)}</p></li>
+    </ul>`
+    )
+    .join('');
+  return (box.innerHTML = markup);
 }
 
 
-// fetch("https://restcountries.com/v3/all?fields=name,capital,population,flags,languages ")
-//     .then(response => response.json())
-//     .then((date) => {insertContent(date)})
-//   fetchCountries()
-//     .then(insertContent)
-//     .catch((error) => { console.log(error) })
+ 
+
+  function renderList(list, listBox) {
+  const markup = list
+    .map(
+      ({ flags: { svg }, name: { official } }) =>
+        `<li class="country-list__item">
+<img src="${svg}" alt="flag" width="30">
+<h1 class="country-list__title">${official}</h1>
+      </li>`
+    )
+    .join('');
+  return (listBox.innerHTML = markup);
+}
